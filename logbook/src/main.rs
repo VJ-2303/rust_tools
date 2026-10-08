@@ -11,11 +11,12 @@ fn main() -> Result<()> {
         } else {
             println!("Logbook is empty.")
         }
+    } else {
+        let mut logbook = fs::File::options()
+            .create(true)
+            .append(true)
+            .open("logbook.txt")?;
+        writeln!(logbook, "{}", args.join(" "))?;
     }
-    let mut logbook = fs::File::options()
-        .create(true)
-        .append(true)
-        .open("logbook.txt")?;
-    writeln!(logbook, "{}", args.join(" "))?;
     Ok(())
 }
