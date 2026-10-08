@@ -7,12 +7,12 @@ pub fn read(path: impl AsRef<Path>) -> Result<Option<String>> {
     if fs::exists(&path)? {
         let text = fs::read_to_string(&path)?;
         if text.is_empty() {
-            return Ok(None);
+            Ok(None)
         } else {
-            return Ok(Some(text));
+            Ok(Some(text))
         }
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }
 
