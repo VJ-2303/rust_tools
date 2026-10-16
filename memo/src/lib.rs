@@ -1,10 +1,25 @@
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Result};
+use std::io::{BufReader, BufWriter, Result};
 use std::path::{Path, PathBuf};
 
+#[derive(Deserialize, Serialize, PartialEq)]
 pub struct Memos {
     path: PathBuf,
-    pub inner: Vec<String>,
+    pub inner: Vec<Memo>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct Memo {
+    pub text: String,
+    pub status: Status,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub enum Status {
+    Pending,
+    Done,
 }
 
 impl Memos {
@@ -15,15 +30,15 @@ impl Memos {
         };
         if fs::exists(&path)? {
             let file = BufReader::new(File::open(&path)?);
-            for memo in file.lines() {
-                memos.inner.push(memo?);
-            }
+            memos.inner = serde_json::from_reader(file)?;
         }
         Ok(memos)
     }
 
     pub fn sync(&self) -> Result<()> {
-        fs::write(&self.path, &self.inner.join("\n"))
+        let file = File::create(&self.path)?;
+        serde_json::to_writer(BufWriter::new(file), &self.inner)?;
+        Ok(())
     }
 }
 
@@ -36,7 +51,20 @@ mod tests {
     #[test]
     fn open_returns_data_from_given_file() {
         let memos = Memos::open("tests/data/memos.txt").unwrap();
-        assert_eq!(memos.inner, vec!["foo", "bar"], "wrong data");
+        assert_eq!(
+            memos.inner,
+            vec![
+                Memo {
+                    text: "foo".to_string(),
+                    status: Status::Pending
+                },
+                Memo {
+                    text: "bar".to_string(),
+                    status: Status::Done,
+                }
+            ],
+            "wrong data"
+        );
     }
 
     #[test]
@@ -51,14 +79,19 @@ mod tests {
         let path = dir.path().join("memos.txt");
         let memos = Memos {
             path: path.clone(),
-            inner: vec!["foo".to_owned(), "bar".to_owned()],
+            inner: vec![
+                Memo {
+                    text: "foo".to_string(),
+                    status: Status::Pending,
+                },
+                Memo {
+                    text: "bar".to_string(),
+                    status: Status::Done,
+                },
+            ],
         };
         memos.sync().unwrap();
         let memos2 = Memos::open(&path).unwrap();
-        assert_eq!(
-            memos2.inner,
-            vec!["foo".to_owned(), "bar".to_owned()],
-            "wrong data"
-        )
+        assert_eq!(memos2.inner, memos.inner, "wrong data")
     }
 }
